@@ -74,9 +74,26 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 
   printk("%s: somebody called an ioctl on dev with [major,minor] number [%d,%d], command %u and parameter %lu \n",MODNAME,get_major(filp),get_minor(filp),command,param);
 
-  //do here whathever you would like to control the state of the device
-  return 0;
-
+  if (current->cred->euid.val != 0) return -EPERM;	//all current commands update the configuration: only EUID 0 (root) 
+  
+  //dispatch of the commands 
+  switch (command) {
+  case 1:		//add syscall, param = syscall number
+	return registry_add_syscall((int)param);
+  case 2:		//del syscall, param = syscall number
+	return registry_del_syscall((int)param);
+  case 3:		//set MAX, param = max invocations per second
+	registry_set_max(param);
+	return 0;
+  case 4:		//monitor on
+	registry_set_monitor(1);
+	return 0;
+  case 5:		//monitor off
+	registry_set_monitor(0);
+	return 0;
+  default:
+	return -EINVAL;	//unknown command
+  }
 }
 
 /* operations supported by the device: maps open, close (release) and ioctl

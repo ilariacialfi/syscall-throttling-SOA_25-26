@@ -8,16 +8,32 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
+//issues one command and prints the result (perror translates the error code returned by the module)
+void try(int fd, unsigned int cmd, unsigned long param, const char *what) {
+	int ret = ioctl(fd, cmd, param);
+	if (ret < 0) perror(what);
+	else printf("%s: ok\n", what);
+}
+
 int main(void) {
 
-	int fd = open("/dev/throttler", O_RDWR);//goes to dev_open - requires root, the device file is rw only for its owner
-	if (fd < 0) {
-		perror("open");//device file missing, module not mounted or minor not allowed
-		return 1;
+	char *device = "/dev/throttler";
+	int fd;
+
+	fd = open(device, O_RDWR);
+	if (fd == -1) {
+		printf("open error on device %s\n", device);	//as in driver-concurrency/user/user.c
+		return -1;
 	}
+	printf("device %s successfully opened\n", device);
 
-	ioctl(fd, 42, 7);//goes to dev_ioctl - dummy command (42) and parameter (7), just printed by the driver
+	try(fd, 1, 1, "add syscall 1");
+	try(fd, 1, 1, "add syscall 1 again");	//expected: File exists
+	try(fd, 2, 39, "del syscall 39");	//expected: No such file or directory
+	try(fd, 3, 5, "set MAX 5");
+	try(fd, 4, 0, "monitor on");
+	try(fd, 99, 0, "unknown command");	//expected: Invalid argument
 
-	close(fd);//goes to dev_release
+	close(fd);
 	return 0;
 }
