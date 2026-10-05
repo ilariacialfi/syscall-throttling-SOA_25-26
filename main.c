@@ -13,12 +13,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
+#include "throttler.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ilaria Cialfi");
 MODULE_DESCRIPTION("syscall throttling");
-
-int dev_register(void);
-void dev_unregister(void);
 
 int init_module(void) {
 	return dev_register();
@@ -27,3 +26,4 @@ int init_module(void) {
 void cleanup_module(void) {
 	dev_unregister();
 }
+

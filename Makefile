@@ -1,5 +1,5 @@
 obj-m += throttler.o
-throttler-objs += main.o device.o
+throttler-objs += main.o device.o registry.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

@@ -19,7 +19,7 @@
 #include <linux/tty.h>		/* For the tty declarations */
 #include <linux/version.h>	/* For LINUX_VERSION_CODE */
 
-#define MODNAME "THROTTLER"	
+#include "throttler.h"
 
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
