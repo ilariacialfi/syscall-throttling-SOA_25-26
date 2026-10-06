@@ -8,7 +8,7 @@ clean:
 mount:
 	-rmmod throttler
 	insmod throttler.ko
-	rm -f /dev/throttler
+	-rm -f /dev/throttler
 	mknod /dev/throttler c $$(grep throttler /proc/devices | cut -d' ' -f1) 0
 
 unmount:

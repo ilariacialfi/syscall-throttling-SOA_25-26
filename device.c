@@ -20,6 +20,7 @@
 #include <linux/version.h>	/* For LINUX_VERSION_CODE */
 
 #include "throttler.h"
+#include "throttle_ioctl.h"
 
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
@@ -78,17 +79,17 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
   
   //dispatch of the commands 
   switch (command) {
-  case 1:		//add syscall, param = syscall number
+  case ADD_SYS:		//add syscall, param = syscall number
 	return registry_add_syscall((int)param);
-  case 2:		//del syscall, param = syscall number
+  case DEL_SYS:		//del syscall, param = syscall number
 	return registry_del_syscall((int)param);
-  case 3:		//set MAX, param = max invocations per second
+  case SET_MAX:		//set MAX, param = max invocations per second
 	registry_set_max(param);
 	return 0;
-  case 4:		//monitor on
+  case MONITOR_ON:		//monitor on
 	registry_set_monitor(1);
 	return 0;
-  case 5:		//monitor off
+  case MONITOR_OFF:		//monitor off
 	registry_set_monitor(0);
 	return 0;
   default:
