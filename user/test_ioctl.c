@@ -31,13 +31,16 @@ int main(void) {
 
 	try(fd, ADD_SYS, 1, "add syscall 1");
 	try(fd, ADD_SYS, 1, "add syscall 1 again");	//expected: File exists
-	try(fd, DEL_SYS, 39, "del syscall 39");	//expected: No such file or directory
+	try(fd, DEL_SYS, 39, "del syscall 39");		//expected: No such file or directory
 	try(fd, ADD_SYS, 39, "add syscall 39");
 	try(fd, DEL_SYS, 39, "del syscall 39");
 	try(fd, SET_MAX, 5, "set MAX 5");
 	try(fd, MONITOR_ON, 0, "monitor on");
-	try(fd, 99, 0, "unknown command");	//expected: Invalid argument
-
+	try(fd, 99, 0, "unknown command");		//expected: Invalid argument
+	try(fd, ADD_EUID, 1000, "add EUID 1000");
+	try(fd, ADD_EUID, 1000, "add EUID 1000 again");	//expected: File exists
+	try(fd, DEL_EUID, 1001, "del EUID 1001");	//expected: No such file or directory
+	try(fd, DEL_EUID, 1000, "del EUID 1000");
 	close(fd);
 	return 0;
 }

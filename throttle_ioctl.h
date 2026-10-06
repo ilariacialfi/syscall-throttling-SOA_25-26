@@ -23,5 +23,7 @@
 #define SET_MAX      _IO(THROTTLE_MAGIC, 3)	//param: MAX invocations per second
 #define MONITOR_ON   _IO(THROTTLE_MAGIC, 4)	//param: unused
 #define MONITOR_OFF  _IO(THROTTLE_MAGIC, 5)	//param: unused
-
+#define ADD_EUID     _IO(THROTTLE_MAGIC, 6)	//param: effective user ID
+#define DEL_EUID     _IO(THROTTLE_MAGIC, 7)	//param: effective user ID
+						//
 #endif

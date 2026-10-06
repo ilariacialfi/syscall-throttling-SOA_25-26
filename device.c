@@ -92,6 +92,10 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
   case MONITOR_OFF:		//monitor off
 	registry_set_monitor(0);
 	return 0;
+  case ADD_EUID:	//add EUID, param = effective user ID
+	return registry_add_euid((int)param);
+  case DEL_EUID:	//del EUID, param = effective user ID
+	return registry_del_euid((int)param);
   default:
 	return -EINVAL;	//unknown command
   }

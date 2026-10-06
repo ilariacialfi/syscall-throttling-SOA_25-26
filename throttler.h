@@ -21,6 +21,8 @@ void dev_unregister(void);
 /* registry.c */
 int registry_add_syscall(int nr);
 int registry_del_syscall(int nr);
+int registry_add_euid(int euid);
+int registry_del_euid(int euid);
 void registry_set_max(unsigned long max);
 void registry_set_monitor(int on);
 
