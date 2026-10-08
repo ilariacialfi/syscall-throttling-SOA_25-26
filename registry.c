@@ -16,11 +16,10 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <asm/unistd.h>		/* For NR_syscalls */
+#include <linux/string.h>
 
 #include "throttler.h"
-
-#define MAX_REGISTERED_SYSCALLS 20	//max number of syscalls that can be registered at the same time
-#define MAX_REGISTERED_EUIDS 20	//max number of EUIDs that can be registered at the same time
+#include "throttle_ioctl.h"
 
 static int registered_euid[MAX_REGISTERED_EUIDS] = {[0 ... (MAX_REGISTERED_EUIDS-1)] -1};	//registered EUIDs, -1 = free slot
 												
@@ -29,6 +28,7 @@ static DEFINE_MUTEX(registry_mutex);	//serializes every access to the configurat
 static int enable_monitor = 0;		//enable/disable throttling monitor
 static unsigned long max_calls = 0;	//MAX invocations per second
 static int registered_sys[MAX_REGISTERED_SYSCALLS] = {[0 ... (MAX_REGISTERED_SYSCALLS-1)] -1};	//registered syscall numbers or -1 if free
+static char registered_prog[MAX_REGISTERED_PROGS][PROG_PATH_MAX];	//registered program paths, empty string = free slot
 
 int registry_add_syscall(int nr) {
 
@@ -114,6 +114,50 @@ int registry_del_euid(int euid) {
 			registered_euid[i] = -1;			//slot is free again
 			mutex_unlock(&registry_mutex);
 			printk("%s: EUID %d deregistered\n", MODNAME, euid);
+			return 0;
+		}
+	}
+	mutex_unlock(&registry_mutex);
+
+	return -ENOENT;						//was not registered
+}
+
+int registry_add_prog(const char *path) {
+
+	int i;
+	int free_slot = -1;
+
+	if (path[0] != '/') return -EINVAL;			//an absolute path is required
+
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
+		if (registered_prog[i][0] != '\0' && strcmp(registered_prog[i], path) == 0) {	//already registered
+			mutex_unlock(&registry_mutex);
+			return -EEXIST;
+		}
+		if (registered_prog[i][0] == '\0' && free_slot == -1) free_slot = i;	//remember the first free slot
+	}
+	if (free_slot == -1) {					//no space left
+		mutex_unlock(&registry_mutex);
+		return -ENOSPC;
+	}
+	memcpy(registered_prog[free_slot], path, strlen(path) + 1);	//+1 copies the terminator too
+	mutex_unlock(&registry_mutex);
+
+	printk("%s: program %s registered\n", MODNAME, path);
+	return 0;
+}
+
+int registry_del_prog(const char *path) {
+
+	int i;
+
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
+		if (registered_prog[i][0] != '\0' && strcmp(registered_prog[i], path) == 0) {
+			registered_prog[i][0] = '\0';		//slot is free again
+			mutex_unlock(&registry_mutex);
+			printk("%s: program %s deregistered\n", MODNAME, path);
 			return 0;
 		}
 	}

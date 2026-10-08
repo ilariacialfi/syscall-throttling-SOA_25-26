@@ -25,5 +25,9 @@
 #define MONITOR_OFF  _IO(THROTTLE_MAGIC, 5)	//param: unused
 #define ADD_EUID     _IO(THROTTLE_MAGIC, 6)	//param: effective user ID
 #define DEL_EUID     _IO(THROTTLE_MAGIC, 7)	//param: effective user ID
-						//
+#define PROG_PATH_MAX 4096	//max length of a program path, terminator included (one page)
+#define ADD_PROG     _IOW(THROTTLE_MAGIC, 8, char[PROG_PATH_MAX])	//param: address of a PROG_PATH_MAX buffer with the absolute path
+#define DEL_PROG     _IOW(THROTTLE_MAGIC, 9, char[PROG_PATH_MAX])	//param: address of a PROG_PATH_MAX buffer with the absolute path
+
+
 #endif

@@ -18,6 +18,8 @@
 #include <linux/pid.h>		/* For pid types */
 #include <linux/tty.h>		/* For the tty declarations */
 #include <linux/version.h>	/* For LINUX_VERSION_CODE */
+#include <linux/uaccess.h>
+#include <linux/mm.h>
 
 #include "throttler.h"
 #include "throttle_ioctl.h"
@@ -67,6 +69,31 @@ static int dev_release(struct inode *inode, struct file *file) {
 
 }
 
+/* copies the program path from user space into a temporary kernel page and
+   passes it to the registry */
+static long prog_command(unsigned int command, unsigned long param) {
+
+	char *path;
+	unsigned long ret;
+	long res;
+
+	path = (char*)get_zeroed_page(GFP_KERNEL);
+	if (path == NULL) return -ENOMEM;
+
+	ret = copy_from_user(path, (char*)param, PROG_PATH_MAX);	//returns the number of bytes NOT copied
+	if (ret != 0) {
+		free_pages((unsigned long)path, 0);
+		return -EFAULT;						//bad user buffer
+	}
+	path[PROG_PATH_MAX - 1] = '\0';					//make sure the string is terminated
+
+	if (command == ADD_PROG) res = registry_add_prog(path);
+	else res = registry_del_prog(path);
+
+	free_pages((unsigned long)path, 0);
+	return res;
+}
+
 /* entry point of the configuration commands: invoked by the kernel when a
    user program calls ioctl() on /dev/throttler; 'command' selects the
    operation, 'param' carries its argument (a value or a user-space address);
@@ -96,6 +123,10 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 	return registry_add_euid((int)param);
   case DEL_EUID:	//del EUID, param = effective user ID
 	return registry_del_euid((int)param);
+  case ADD_PROG:	//add program, param = address of the path buffer
+  	return prog_command(command, param);
+  case DEL_PROG:	//del program, param = address of the path buffer
+	return prog_command(command, param);
   default:
 	return -EINVAL;	//unknown command
   }
