@@ -106,10 +106,20 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
   
   //dispatch of the commands 
   switch (command) {
-  case ADD_SYS:		//add syscall, param = syscall number
-	return registry_add_syscall((int)param);
-  case DEL_SYS:		//del syscall, param = syscall number
-	return registry_del_syscall((int)param);
+  case ADD_SYS:	{	//add syscall, param = syscall number
+	int nr = (int)param;
+	int ret = registry_add_syscall(nr);
+	if (ret != 0) return ret;
+	ret = sctable_replace(nr);
+	if (ret != 0) registry_del_syscall(nr);	//rollback the registry if replace failed
+	return ret;
+		}
+  case DEL_SYS:	{	//del syscall, param = syscall number
+	int nr = (int)param;
+	int ret = registry_del_syscall(nr);
+	if (ret == 0) sctable_restore(nr);
+	return ret;
+		}
   case SET_MAX:		//set MAX, param = max invocations per second
 	registry_set_max(param);
 	return 0;

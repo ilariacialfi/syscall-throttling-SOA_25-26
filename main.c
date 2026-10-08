@@ -28,12 +28,11 @@ int init_module(void) {
 		printk("%s: cannot manage sys_call_table address set to 0x0\n", MODNAME);
 		return -1;
 	}
-	if (sctable_replace(39) != 0) return -1;	//getpid, test syscall
 	return dev_register();
 }
 
 void cleanup_module(void) {
-	sctable_restore();
+	sctable_restore_all();
 	dev_unregister();
 }
 
