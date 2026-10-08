@@ -14,9 +14,7 @@
 
 #define MODNAME "THROTTLER"
 
-#define MAX_REGISTERED_SYSCALLS 20	//max number of syscalls that can be registered at the same time
-#define MAX_REGISTERED_EUIDS 20		//max number of EUIDs that can be registered at the same time
-#define MAX_REGISTERED_PROGS 20		//max number of programs that can be registered at the same time
+#include "throttle_ioctl.h"
 
 /* device.c */
 int dev_register(void);
@@ -31,7 +29,7 @@ int registry_add_prog(const char *path);
 int registry_del_prog(const char *path);
 void registry_set_max(unsigned long max);
 void registry_set_monitor(int on);
-
+void registry_get_config(struct throttle_config *confg);
 /* main.c */
 extern unsigned long the_syscall_table;	//defined in main.c, set from the module parameter
 

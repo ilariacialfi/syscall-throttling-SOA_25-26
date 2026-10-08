@@ -28,7 +28,8 @@ static void usage(const char *prog) {
 		"  del-prog <path>  deregistra il programma\n"
 		"  set-max <n>      imposta MAX (invocazioni al secondo)\n"
 		"  on               accende il monitor\n"
-		"  off              spegne il monitor\n", prog);
+		"  off              spegne il monitor\n"
+		"  show             mostra la configurazione corrente\n", prog);
 }
 
 int main(int argc, char **argv) {
@@ -66,6 +67,25 @@ int main(int argc, char **argv) {
 		ret = ioctl(fd, MONITOR_ON, 0);
 	else if (strcmp(argv[1], "off") == 0 && argc == 2)
 		ret = ioctl(fd, MONITOR_OFF, 0);
+	else if (strcmp(argv[1], "show") == 0 && argc == 2) {
+		struct throttle_config confg;
+		int i;
+		if (ioctl(fd, GET_CONFIG, (unsigned long)&confg) < 0) { perror("show"); close(fd); return 1; }
+		if (confg.monitor)
+			printf("monitor: on\n");
+	        else
+			printf("monitor: off\n");
+		printf("MAX: %lu\n", confg.max);
+		printf("syscall registered:");
+		for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++)
+			if (confg.syscalls[i] != -1) printf(" %d", confg.syscalls[i]);
+		printf("\nEUID registered:");
+		for (i = 0; i < MAX_REGISTERED_EUIDS; i++)
+			if (confg.euids[i] != -1) printf(" %d", confg.euids[i]);
+		printf("\n");
+		close(fd);
+		return 0;
+	}
 	else { usage(argv[0]); close(fd); return 1; }
 
 	if (ret < 0) perror(argv[1]);

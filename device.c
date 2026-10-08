@@ -102,6 +102,14 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 
   printk("%s: somebody called an ioctl on dev with [major,minor] number [%d,%d], command %u and parameter %lu \n",MODNAME,get_major(filp),get_minor(filp),command,param);
 
+  //read command: open to everyone
+  if (command == GET_CONFIG) {
+	struct throttle_config confg;
+	registry_get_config(&confg);
+	if (copy_to_user((void*)param, &confg, sizeof(confg))) return -EFAULT;
+	return 0;
+  }
+
   if (current->cred->euid.val != 0) return -EPERM;	//all current commands update the configuration: only EUID 0 (root) 
   
   //dispatch of the commands 

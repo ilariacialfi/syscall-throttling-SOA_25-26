@@ -183,3 +183,15 @@ void registry_set_monitor(int on) {
 
 	printk("%s: monitor %s\n", MODNAME, on ? "on" : "off");
 }
+
+void registry_get_config(struct throttle_config *confg) {
+
+	int i;
+
+	mutex_lock(&registry_mutex);
+	confg->monitor = enable_monitor;
+	confg->max = max_calls;
+	for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++) confg->syscalls[i] = registered_sys[i];
+	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) confg->euids[i] = registered_euid[i];
+	mutex_unlock(&registry_mutex);
+}
