@@ -36,10 +36,17 @@ static long my_wrapper(const struct pt_regs *regs) {
 	int nr = (int)regs->orig_ax;	//on x86-64 orig_ax holds the syscall number
 	int slot = sc_slot(nr);
 
-	printk("%s: wrapper called for syscall %d by thread %d\n", MODNAME, nr, current->pid);
+	syscall_ptr_t orig;
 
-	if (slot < 0) return -ENOSYS; //should not happen
-	return original_syscalls[slot](regs);
+	if (slot < 0) return -ENOSYS;
+	orig = original_syscalls[slot];
+
+	//under observation only if the monitor is on AND the caller is registered
+	if (registry_monitor_on() && registry_is_euid_registered(current->cred->euid.val)) {
+		printk("%s: syscall %d under observation - euid %d, thread %d\n", MODNAME, nr, current->cred->euid.val, current->pid);
+	}
+
+	return orig(regs);
 }
 
 int sctable_replace(int nr){

@@ -205,3 +205,26 @@ void registry_get_progs(struct throttle_progs *p) {
 		memcpy(p->progs[i], registered_prog[i], PROG_PATH_MAX);
 	mutex_unlock(&registry_mutex);
 }
+
+//returns 1 if the monitor is on
+int registry_monitor_on(void) {
+
+	int on;
+
+	mutex_lock(&registry_mutex);
+	on = enable_monitor;
+	mutex_unlock(&registry_mutex);
+	return on;
+}
+
+//returns 1 if euid is registered
+int registry_is_euid_registered(int euid) {
+
+	int i, found = 0;
+
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_EUIDS; i++)
+		if (registered_euid[i] == euid) { found = 1; break; }
+	mutex_unlock(&registry_mutex);
+	return found;
+}

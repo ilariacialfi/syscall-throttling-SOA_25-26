@@ -31,6 +31,8 @@ void registry_set_max(unsigned long max);
 void registry_set_monitor(int on);
 void registry_get_config(struct throttle_config *confg);
 void registry_get_progs(struct throttle_progs *p);
+int registry_monitor_on(void);
+int registry_is_euid_registered(int euid);
 
 /* main.c */
 extern unsigned long the_syscall_table;	//defined in main.c, set from the module parameter
