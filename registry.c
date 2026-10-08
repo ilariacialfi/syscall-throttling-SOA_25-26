@@ -195,3 +195,13 @@ void registry_get_config(struct throttle_config *confg) {
 	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) confg->euids[i] = registered_euid[i];
 	mutex_unlock(&registry_mutex);
 }
+
+void registry_get_progs(struct throttle_progs *p) {
+
+	int i;
+
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_PROGS; i++)
+		memcpy(p->progs[i], registered_prog[i], PROG_PATH_MAX);
+	mutex_unlock(&registry_mutex);
+}

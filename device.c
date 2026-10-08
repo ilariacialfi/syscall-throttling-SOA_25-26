@@ -20,6 +20,7 @@
 #include <linux/version.h>	/* For LINUX_VERSION_CODE */
 #include <linux/uaccess.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include "throttler.h"
 #include "throttle_ioctl.h"
@@ -107,6 +108,16 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 	struct throttle_config confg;
 	registry_get_config(&confg);
 	if (copy_to_user((void*)param, &confg, sizeof(confg))) return -EFAULT;
+	return 0;
+  }
+
+  //read command: open to everyone
+  if (command == GET_PROGS) {
+	struct throttle_progs *p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) return -ENOMEM;
+	registry_get_progs(p);
+	if (copy_to_user((void*)param, p, sizeof(*p))) { kfree(p); return -EFAULT; }
+	kfree(p);
 	return 0;
   }
 

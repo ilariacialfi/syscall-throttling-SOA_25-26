@@ -83,6 +83,14 @@ int main(int argc, char **argv) {
 		for (i = 0; i < MAX_REGISTERED_EUIDS; i++)
 			if (confg.euids[i] != -1) printf(" %d", confg.euids[i]);
 		printf("\n");
+		struct throttle_progs *p = malloc(sizeof(*p));
+		if (p == NULL) { perror("malloc"); close(fd); return 1; }
+		if (ioctl(fd, GET_PROGS, (unsigned long)p) < 0) { perror("show progs"); free(p); close(fd); return 1; }
+		printf("programmi registrati:");
+		for (i = 0; i < MAX_REGISTERED_PROGS; i++)
+			if (p->progs[i][0] != '\0') printf(" %s", p->progs[i]);
+		printf("\n");
+		free(p);
 		close(fd);
 		return 0;
 	}

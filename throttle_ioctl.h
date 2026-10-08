@@ -42,4 +42,10 @@ struct throttle_config {
 
 #define GET_CONFIG   _IOR(THROTTLE_MAGIC, 10, struct throttle_config)	//read the current configuration
 
+struct throttle_progs {
+	char progs[MAX_REGISTERED_PROGS][PROG_PATH_MAX];	//empty string = free slot
+};
+
+#define GET_PROGS   _IOR(THROTTLE_MAGIC, 11, struct throttle_progs *)	//read the registered programs
+
 #endif
