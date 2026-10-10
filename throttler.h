@@ -33,7 +33,7 @@ void registry_get_config(struct throttle_config *confg);
 void registry_get_progs(struct throttle_progs *p);
 int registry_monitor_on(void);
 int registry_is_euid_registered(int euid);
-
+int registry_is_prog_registered(const char *path);
 /* main.c */
 extern unsigned long the_syscall_table;	//defined in main.c, set from the module parameter
 

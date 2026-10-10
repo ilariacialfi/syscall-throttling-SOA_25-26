@@ -41,11 +41,22 @@ static long my_wrapper(const struct pt_regs *regs) {
 	if (slot < 0) return -ENOSYS;
 	orig = original_syscalls[slot];
 
-	//under observation only if the monitor is on AND the caller is registered
-	if (registry_monitor_on() && registry_is_euid_registered(current->cred->euid.val)) {
-		printk("%s: syscall %d under observation - euid %d, thread %d\n", MODNAME, nr, current->cred->euid.val, current->pid);
-	}
+	//under observation only if the monitor is on AND the caller is registered (EUID or PATH)
+	if (registry_monitor_on()) {
+		int observed = 0;
 
+		if (registry_is_euid_registered(current->cred->euid.val)) {
+			observed = 1;
+		} else if (registry_is_prog_registered(current->comm)) {
+			observed = 1;
+		}
+
+		if (observed) {
+			printk("%s: syscall %d under observation - euid %d, thread %d\n",
+					MODNAME, nr, current->cred->euid.val, current->pid);
+			//1 second count //////////////////////////////////////////////
+		}
+	}
 	return orig(regs);
 }
 

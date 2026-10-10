@@ -127,8 +127,6 @@ int registry_add_prog(const char *path) {
 	int i;
 	int free_slot = -1;
 
-	if (path[0] != '/') return -EINVAL;			//an absolute path is required
-
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
 		if (registered_prog[i][0] != '\0' && strcmp(registered_prog[i], path) == 0) {	//already registered
@@ -225,6 +223,22 @@ int registry_is_euid_registered(int euid) {
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_EUIDS; i++)
 		if (registered_euid[i] == euid) { found = 1; break; }
+	mutex_unlock(&registry_mutex);
+	return found;
+}
+
+//returns 1 if program is registered
+int registry_is_prog_registered(const char *path) {
+	int i, found = 0;
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
+		if (strcmp(registered_prog[i], "") == 0)
+			continue;
+		if (strcmp(registered_prog[i], path) == 0) {
+			found = 1;
+			break;
+		}
+	}
 	mutex_unlock(&registry_mutex);
 	return found;
 }

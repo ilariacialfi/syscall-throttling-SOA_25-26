@@ -24,7 +24,7 @@ static void usage(const char *prog) {
 		"  del-sys <n>      deregistra la syscall n\n"
 		"  add-uid <id>     registra l'EUID id\n"
 		"  del-uid <id>     deregistra l'EUID id\n"
-		"  add-prog <path>  registra il programma (percorso assoluto)\n"
+		"  add-prog <path>  registra il programma (nome del programma)\n"
 		"  del-prog <path>  deregistra il programma\n"
 		"  set-max <n>      imposta MAX (invocazioni al secondo)\n"
 		"  on               accende il monitor\n"
