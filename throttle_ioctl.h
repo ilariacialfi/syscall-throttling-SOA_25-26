@@ -21,7 +21,7 @@
 #define MAX_REGISTERED_SYSCALLS 20	//max number of syscalls that can be registered at the same time
 #define MAX_REGISTERED_EUIDS 20		//max number of EUIDs that can be registered at the same time
 #define MAX_REGISTERED_PROGS 20		//max number of programs that can be registered
-#define PROG_PATH_MAX 4096      //max length of a program path, terminator included (one page)
+#define PROG_NAME_MAX 16      //size of TASK_COMM_LEN kernel constant
 
 #define ADD_SYS      _IO(THROTTLE_MAGIC, 1)	//param: syscall number
 #define DEL_SYS      _IO(THROTTLE_MAGIC, 2)	//param: syscall number
@@ -30,22 +30,17 @@
 #define MONITOR_OFF  _IO(THROTTLE_MAGIC, 5)	//param: unused
 #define ADD_EUID     _IO(THROTTLE_MAGIC, 6)	//param: effective user ID
 #define DEL_EUID     _IO(THROTTLE_MAGIC, 7)	//param: effective user ID
-#define ADD_PROG     _IOW(THROTTLE_MAGIC, 8, char[PROG_PATH_MAX])	//param: address of a PROG_PATH_MAX buffer with the absolute path
-#define DEL_PROG     _IOW(THROTTLE_MAGIC, 9, char[PROG_PATH_MAX])	//param: address of a PROG_PATH_MAX buffer with the absolute path
+#define ADD_PROG     _IOW(THROTTLE_MAGIC, 8, char[PROG_NAME_MAX])	//param: address of a PROG_NAME_MAX buffer with the absolute path
+#define DEL_PROG     _IOW(THROTTLE_MAGIC, 9, char[PROG_NAME_MAX])   	//param: address of a PROG_NAME_MAX buffer with the program name
 
 struct throttle_config {
 	int monitor;				//0 = off, 1 = on
 	unsigned long max;			//MAX
 	int syscalls[MAX_REGISTERED_SYSCALLS];	//-1 = free syscall slot
 	int euids[MAX_REGISTERED_EUIDS];	//-1 = free EUID slot
+	char progs[MAX_REGISTERED_PROGS][PROG_NAME_MAX];
 };
 
 #define GET_CONFIG   _IOR(THROTTLE_MAGIC, 10, struct throttle_config)	//read the current configuration
-
-struct throttle_progs {
-	char progs[MAX_REGISTERED_PROGS][PROG_PATH_MAX];	//empty string = free slot
-};
-
-#define GET_PROGS   _IOR(THROTTLE_MAGIC, 11, struct throttle_progs *)	//read the registered programs
 
 #endif

@@ -17,18 +17,33 @@
 #include <linux/errno.h>
 #include <asm/unistd.h>		/* For NR_syscalls */
 #include <linux/string.h>
+#include <linux/jiffies.h> 	/* for time windows */
 
 #include "throttler.h"
 #include "throttle_ioctl.h"
 
-static int registered_euid[MAX_REGISTERED_EUIDS] = {[0 ... (MAX_REGISTERED_EUIDS-1)] -1};	//registered EUIDs, -1 = free slot
-												
 static DEFINE_MUTEX(registry_mutex);	//serializes every access to the configuration
 
 static int enable_monitor = 0;		//enable/disable throttling monitor
 static unsigned long max_calls = 0;	//MAX invocations per second
-static int registered_sys[MAX_REGISTERED_SYSCALLS] = {[0 ... (MAX_REGISTERED_SYSCALLS-1)] -1};	//registered syscall numbers or -1 if free
-static char registered_prog[MAX_REGISTERED_PROGS][PROG_PATH_MAX];	//registered program paths, empty string = free slot
+
+static int registered_sys[MAX_REGISTERED_SYSCALLS] = {[0 ... (MAX_REGISTERED_SYSCALLS-1)] -1};  //registered syscall numbers or -1 if free
+
+struct euid_entry {
+    int euid;                 // -1 = free slot (0 = root)
+    unsigned long win_start;
+    unsigned long count;
+};
+
+static struct euid_entry registered_euid[MAX_REGISTERED_EUIDS] = {[0 ... (MAX_REGISTERED_EUIDS-1)] = { .euid = -1}};       //registered EUIDs, -1 = free slot
+
+struct prog_entry {
+    char name[PROG_NAME_MAX]; // "" = free slot
+    unsigned long win_start;
+    unsigned long count;
+};
+
+static struct prog_entry registered_prog[MAX_REGISTERED_PROGS];	//registered program paths, empty string = free slot
 
 int registry_add_syscall(int nr) {
 
@@ -85,17 +100,19 @@ int registry_add_euid(int euid) {
 
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) {
-		if (registered_euid[i] == euid) {		//already registered
+		if (registered_euid[i].euid == euid) {		//already registered
 			mutex_unlock(&registry_mutex);
 			return -EEXIST;
 		}
-		if (registered_euid[i] == -1 && free_slot == -1) free_slot = i;	//remember the first free slot
+		if (registered_euid[i].euid == -1 && free_slot == -1) free_slot = i;	//remember the first free slot
 	}
 	if (free_slot == -1) {					//no space left
 		mutex_unlock(&registry_mutex);
 		return -ENOSPC;
 	}
-	registered_euid[free_slot] = euid;
+	registered_euid[free_slot].euid = euid;
+	registered_euid[free_slot].count = 0;
+	registered_euid[free_slot].win_start = jiffies;
 	mutex_unlock(&registry_mutex);
 
 	printk("%s: EUID %d registered\n", MODNAME, euid);
@@ -110,8 +127,8 @@ int registry_del_euid(int euid) {
 
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) {
-		if (registered_euid[i] == euid) {
-			registered_euid[i] = -1;			//slot is free again
+		if (registered_euid[i].euid == euid) {
+			registered_euid[i].euid = -1;			//slot is free again
 			mutex_unlock(&registry_mutex);
 			printk("%s: EUID %d deregistered\n", MODNAME, euid);
 			return 0;
@@ -122,40 +139,42 @@ int registry_del_euid(int euid) {
 	return -ENOENT;						//was not registered
 }
 
-int registry_add_prog(const char *path) {
+int registry_add_prog(const char *name) {
 
 	int i;
 	int free_slot = -1;
 
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
-		if (registered_prog[i][0] != '\0' && strcmp(registered_prog[i], path) == 0) {	//already registered
+		if (registered_prog[i].name[0] != '\0' && strcmp(registered_prog[i].name, name) == 0) {	//already registered
 			mutex_unlock(&registry_mutex);
 			return -EEXIST;
 		}
-		if (registered_prog[i][0] == '\0' && free_slot == -1) free_slot = i;	//remember the first free slot
+		if (registered_prog[i].name[0] == '\0' && free_slot == -1) free_slot = i;	//remember the first free slot
 	}
 	if (free_slot == -1) {					//no space left
 		mutex_unlock(&registry_mutex);
 		return -ENOSPC;
 	}
-	memcpy(registered_prog[free_slot], path, strlen(path) + 1);	//+1 copies the terminator too
+	memcpy(registered_prog[free_slot].name, name, strlen(name) + 1);	//+1 copies the terminator too
+	registered_prog[free_slot].count = 0;
+	registered_prog[free_slot].win_start = jiffies;
 	mutex_unlock(&registry_mutex);
 
-	printk("%s: program %s registered\n", MODNAME, path);
+	printk("%s: program %s registered\n", MODNAME, name);
 	return 0;
 }
 
-int registry_del_prog(const char *path) {
+int registry_del_prog(const char *name) {
 
 	int i;
 
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
-		if (registered_prog[i][0] != '\0' && strcmp(registered_prog[i], path) == 0) {
-			registered_prog[i][0] = '\0';		//slot is free again
+		if (registered_prog[i].name[0] != '\0' && strcmp(registered_prog[i].name, name) == 0) {
+			registered_prog[i].name[0] = '\0';		//slot is free again
 			mutex_unlock(&registry_mutex);
-			printk("%s: program %s deregistered\n", MODNAME, path);
+			printk("%s: program %s deregistered\n", MODNAME, name);
 			return 0;
 		}
 	}
@@ -182,6 +201,7 @@ void registry_set_monitor(int on) {
 	printk("%s: monitor %s\n", MODNAME, on ? "on" : "off");
 }
 
+/* fills throttle_config: monitor, MAX, syscalls, EUIDs and program names. */
 void registry_get_config(struct throttle_config *confg) {
 
 	int i;
@@ -190,17 +210,8 @@ void registry_get_config(struct throttle_config *confg) {
 	confg->monitor = enable_monitor;
 	confg->max = max_calls;
 	for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++) confg->syscalls[i] = registered_sys[i];
-	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) confg->euids[i] = registered_euid[i];
-	mutex_unlock(&registry_mutex);
-}
-
-void registry_get_progs(struct throttle_progs *p) {
-
-	int i;
-
-	mutex_lock(&registry_mutex);
-	for (i = 0; i < MAX_REGISTERED_PROGS; i++)
-		memcpy(p->progs[i], registered_prog[i], PROG_PATH_MAX);
+	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) confg->euids[i] = registered_euid[i].euid;
+	for (i = 0; i < MAX_REGISTERED_PROGS; i++) memcpy(confg->progs[i], registered_prog[i].name, PROG_NAME_MAX);
 	mutex_unlock(&registry_mutex);
 }
 
@@ -222,19 +233,19 @@ int registry_is_euid_registered(int euid) {
 
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_EUIDS; i++)
-		if (registered_euid[i] == euid) { found = 1; break; }
+		if (registered_euid[i].euid == euid) { found = 1; break; }
 	mutex_unlock(&registry_mutex);
 	return found;
 }
 
 //returns 1 if program is registered
-int registry_is_prog_registered(const char *path) {
+int registry_is_prog_registered(const char *name) {
 	int i, found = 0;
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
-		if (strcmp(registered_prog[i], "") == 0)
+		if (strcmp(registered_prog[i].name, "") == 0)
 			continue;
-		if (strcmp(registered_prog[i], path) == 0) {
+		if (strcmp(registered_prog[i].name, name) == 0) {
 			found = 1;
 			break;
 		}

@@ -19,23 +19,23 @@
 
 static void usage(const char *prog) {
 	fprintf(stderr,
-		"uso: %s <comando> [argomento]\n"
-		"  add-sys <n>      registra la syscall n\n"
-		"  del-sys <n>      deregistra la syscall n\n"
-		"  add-uid <id>     registra l'EUID id\n"
-		"  del-uid <id>     deregistra l'EUID id\n"
-		"  add-prog <path>  registra il programma (nome del programma)\n"
-		"  del-prog <path>  deregistra il programma\n"
-		"  set-max <n>      imposta MAX (invocazioni al secondo)\n"
-		"  on               accende il monitor\n"
-		"  off              spegne il monitor\n"
-		"  show             mostra la configurazione corrente\n", prog);
+		"uso: %s <command> [argument]\n"
+		"  add-sys <n>      register a syscalll n\n"
+		"  del-sys <n>      deregister a syscall n\n"
+		"  add-uid <id>     register EUID\n"
+		"  del-uid <id>     deregister EUID \n"
+		"  add-prog <path>  register program name\n"
+		"  del-prog <path>  deregister program name\n"
+		"  set-max <n>      set MAX (invocations per second)\n"
+		"  on               monitor on\n"
+		"  off              monitor off\n"
+		"  show             show the current configuration\n", prog);
 }
 
 int main(int argc, char **argv) {
 
 	int fd, ret;
-	char path[PROG_PATH_MAX];
+	char path[PROG_NAME_MAX];
 
 	if (argc < 2) { usage(argv[0]); return 1; }
 
@@ -52,13 +52,13 @@ int main(int argc, char **argv) {
 	else if (strcmp(argv[1], "del-uid") == 0 && argc == 3)
 		ret = ioctl(fd, DEL_EUID, atoi(argv[2]));
 	else if (strcmp(argv[1], "add-prog") == 0 && argc == 3) {
-		strncpy(path, argv[2], PROG_PATH_MAX);
-		path[PROG_PATH_MAX - 1] = '\0';
+		strncpy(path, argv[2], PROG_NAME_MAX);
+		path[PROG_NAME_MAX - 1] = '\0';
 		ret = ioctl(fd, ADD_PROG, (unsigned long)path);
 	}
 	else if (strcmp(argv[1], "del-prog") == 0 && argc == 3) {
-		strncpy(path, argv[2], PROG_PATH_MAX);
-		path[PROG_PATH_MAX - 1] = '\0';
+		strncpy(path, argv[2], PROG_NAME_MAX);
+		path[PROG_NAME_MAX - 1] = '\0';
 		ret = ioctl(fd, DEL_PROG, (unsigned long)path);
 	}
 	else if (strcmp(argv[1], "set-max") == 0 && argc == 3)
@@ -82,15 +82,10 @@ int main(int argc, char **argv) {
 		printf("\nEUID registered:");
 		for (i = 0; i < MAX_REGISTERED_EUIDS; i++)
 			if (confg.euids[i] != -1) printf(" %d", confg.euids[i]);
-		printf("\n");
-		struct throttle_progs *p = malloc(sizeof(*p));
-		if (p == NULL) { perror("malloc"); close(fd); return 1; }
-		if (ioctl(fd, GET_PROGS, (unsigned long)p) < 0) { perror("show progs"); free(p); close(fd); return 1; }
-		printf("programmi registrati:");
+		printf("\nregistered programs:");
 		for (i = 0; i < MAX_REGISTERED_PROGS; i++)
-			if (p->progs[i][0] != '\0') printf(" %s", p->progs[i]);
+			if (confg.progs[i][0] != '\0') printf(" %s", confg.progs[i]);
 		printf("\n");
-		free(p);
 		close(fd);
 		return 0;
 	}

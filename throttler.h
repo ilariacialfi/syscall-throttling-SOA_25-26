@@ -30,7 +30,6 @@ int registry_del_prog(const char *path);
 void registry_set_max(unsigned long max);
 void registry_set_monitor(int on);
 void registry_get_config(struct throttle_config *confg);
-void registry_get_progs(struct throttle_progs *p);
 int registry_monitor_on(void);
 int registry_is_euid_registered(int euid);
 int registry_is_prog_registered(const char *path);

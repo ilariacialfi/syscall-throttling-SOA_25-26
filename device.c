@@ -34,7 +34,7 @@ static long dev_ioctl(struct file *, unsigned int, unsigned long);
 static int Major;            /* Major number assigned to the device driver */
 
 /* extract major and minor number of the device file from an open session;
-   the path to the inode depends on the kernel version (f_inode since 4.0) */
+   the name to the inode depends on the kernel version (f_inode since 4.0) */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
 #define get_major(session)	MAJOR(session->f_inode->i_rdev)
 #define get_minor(session)	MINOR(session->f_inode->i_rdev)
@@ -70,28 +70,28 @@ static int dev_release(struct inode *inode, struct file *file) {
 
 }
 
-/* copies the program path from user space into a temporary kernel page and
+/* copies the program name from user space into a temporary kernel page and
    passes it to the registry */
 static long prog_command(unsigned int command, unsigned long param) {
 
-	char *path;
+	char *name;
 	unsigned long ret;
 	long res;
 
-	path = (char*)get_zeroed_page(GFP_KERNEL);
-	if (path == NULL) return -ENOMEM;
+	name = (char*)get_zeroed_page(GFP_KERNEL);
+	if (name == NULL) return -ENOMEM;
 
-	ret = copy_from_user(path, (char*)param, PROG_PATH_MAX);	//returns the number of bytes NOT copied
+	ret = copy_from_user(name, (char*)param, PROG_NAME_MAX);	//returns the number of bytes NOT copied
 	if (ret != 0) {
-		free_pages((unsigned long)path, 0);
+		free_pages((unsigned long)name, 0);
 		return -EFAULT;						//bad user buffer
 	}
-	path[PROG_PATH_MAX - 1] = '\0';					//make sure the string is terminated
+	name[PROG_NAME_MAX - 1] = '\0';					//make sure the string is terminated
 
-	if (command == ADD_PROG) res = registry_add_prog(path);
-	else res = registry_del_prog(path);
+	if (command == ADD_PROG) res = registry_add_prog(name);
+	else res = registry_del_prog(name);
 
-	free_pages((unsigned long)path, 0);
+	free_pages((unsigned long)name, 0);
 	return res;
 }
 
@@ -108,16 +108,6 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 	struct throttle_config confg;
 	registry_get_config(&confg);
 	if (copy_to_user((void*)param, &confg, sizeof(confg))) return -EFAULT;
-	return 0;
-  }
-
-  //read command: open to everyone
-  if (command == GET_PROGS) {
-	struct throttle_progs *p = kmalloc(sizeof(*p), GFP_KERNEL);
-	if (p == NULL) return -ENOMEM;
-	registry_get_progs(p);
-	if (copy_to_user((void*)param, p, sizeof(*p))) { kfree(p); return -EFAULT; }
-	kfree(p);
 	return 0;
   }
 
@@ -152,9 +142,9 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 	return registry_add_euid((int)param);
   case DEL_EUID:	//del EUID, param = effective user ID
 	return registry_del_euid((int)param);
-  case ADD_PROG:	//add program, param = address of the path buffer
+  case ADD_PROG:	//add program, param = address of the name buffer
   	return prog_command(command, param);
-  case DEL_PROG:	//del program, param = address of the path buffer
+  case DEL_PROG:	//del program, param = address of the name buffer
 	return prog_command(command, param);
   default:
 	return -EINVAL;	//unknown command
