@@ -253,3 +253,58 @@ int registry_is_prog_registered(const char *name) {
 	mutex_unlock(&registry_mutex);
 	return found;
 }
+
+/* window + count for one subject slot; call with registry_mutex held.
+   Rolls the 1-second window if it is expired, counts syscall invocations,
+   counts the left tick remaning until the windows ends.
+   Returns SUBJ_UNDER or SUBJ_OVER. */
+static int count_slot(unsigned long *win_start, unsigned long *count, unsigned long *left)
+{
+	unsigned long now = jiffies;
+
+	if (time_after(now, *win_start + HZ)) {   // more than 1 s (HZ jiffies) since the window opened
+		*win_start = now;                      // open a new window
+		*count = 0;
+	}
+	
+	*left = *win_start + HZ - now;
+	
+	if (*count < max_calls){
+		(*count)++;
+		return SUBJ_UNDER;
+	} 
+	return SUBJ_OVER;
+}
+
+int registry_count_euid(int euid, unsigned long *left)
+{
+	int i, res = SUBJ_NOT_REGISTERED;
+	*left = 0;
+	
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) {
+		if (registered_euid[i].euid == euid) {
+			res = count_slot(&registered_euid[i].win_start, &registered_euid[i].count, left);
+			break;
+		}
+	}
+	mutex_unlock(&registry_mutex);
+	return res;
+}
+
+int registry_count_prog(const char *name, unsigned long *left)
+{
+	int i, res = SUBJ_NOT_REGISTERED;
+	*left = 0;
+
+	mutex_lock(&registry_mutex);
+	for (i = 0; i < MAX_REGISTERED_PROGS; i++) {
+		if (registered_prog[i].name[0] != '\0' &&
+				strcmp(registered_prog[i].name, name) == 0) {
+			res = count_slot(&registered_prog[i].win_start, &registered_prog[i].count, left);
+			break;
+		}
+	}
+	mutex_unlock(&registry_mutex);
+	return res;
+}

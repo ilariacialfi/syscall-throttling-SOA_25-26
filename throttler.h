@@ -9,12 +9,17 @@
  */
 
 
+
 #ifndef _THROTTLER_H
 #define _THROTTLER_H
+#include "throttle_ioctl.h"
 
 #define MODNAME "THROTTLER"
 
-#include "throttle_ioctl.h"
+/* subject counting possible results */
+#define SUBJ_NOT_REGISTERED 0
+#define SUBJ_UNDER          1
+#define SUBJ_OVER           2
 
 /* device.c */
 int dev_register(void);
@@ -33,6 +38,9 @@ void registry_get_config(struct throttle_config *confg);
 int registry_monitor_on(void);
 int registry_is_euid_registered(int euid);
 int registry_is_prog_registered(const char *path);
+int registry_count_euid(int euid, unsigned long *left);
+int registry_count_prog(const char *name, unsigned long *left);
+
 /* main.c */
 extern unsigned long the_syscall_table;	//defined in main.c, set from the module parameter
 

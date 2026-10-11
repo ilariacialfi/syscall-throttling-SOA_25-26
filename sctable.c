@@ -12,9 +12,12 @@
 #include <linux/syscalls.h>
 #include <linux/ptrace.h>	/* For struct pt_regs */
 #include <linux/errno.h>
+#include <linux/wait.h>
 
 #include "throttler.h"
 #include "lib/include/scth.h"
+
+static DECLARE_WAIT_QUEUE_HEAD(throttle_queue);
 
 typedef long (*syscall_ptr_t)(const struct pt_regs *);	//single-argument syscall signature (kernel >= 4.17)
 
@@ -29,8 +32,10 @@ static int sc_slot(int nr) {
 	return -1;
 }
 
-/* the wrapper installed in place of the real syscall: for now it just calls
-   the original one and returns its result, so behavior is unchanged */
+/* the wrapper installed in place of the real syscall: when the monitor is on,
+   it counts the invocation per registered subject (EUID and/or program) in the
+   1-second window and logs when a subject goes over MAX; then it calls the
+   original syscall and returns its result (blocking will be added next) */
 static long my_wrapper(const struct pt_regs *regs) {
 
 	int nr = (int)regs->orig_ax;	//on x86-64 orig_ax holds the syscall number
@@ -41,23 +46,51 @@ static long my_wrapper(const struct pt_regs *regs) {
 	if (slot < 0) return -ENOSYS;
 	orig = original_syscalls[slot];
 
-	//under observation only if the monitor is on AND the caller is registered (EUID or PATH)
 	if (registry_monitor_on()) {
-		int observed = 0;
+		unsigned long left_euid = 0;
+		unsigned long left_prog = 0;
+		int result_euid = registry_count_euid(current->cred->euid.val, &left_euid);
+		int result_prog = registry_count_prog(current->comm, &left_prog);
 
-		if (registry_is_euid_registered(current->cred->euid.val)) {
-			observed = 1;
-		} else if (registry_is_prog_registered(current->comm)) {
-			observed = 1;
-		}
+		/* over MAX logging & block*/    
+		if (result_euid == SUBJ_OVER || result_prog == SUBJ_OVER) {
+			if (result_euid == SUBJ_OVER && result_prog == SUBJ_OVER)
+				printk("%s: syscall %d OVER MAX - euid %d and program %s, thread %d\n", 
+						MODNAME, nr, current->cred->euid.val, current->comm, current->pid);
+			else if (result_euid == SUBJ_OVER)
+				printk("%s: syscall %d OVER MAX - euid %d, thread %d\n", 
+						MODNAME, nr, current->cred->euid.val, current->pid);
+			else if (result_prog == SUBJ_OVER)
+				printk("%s: syscall %d OVER MAX - program %s, thread %d\n", 
+						MODNAME, nr, current->comm, current->pid);
+			while (result_euid == SUBJ_OVER || result_prog == SUBJ_OVER) {
+				unsigned long wait = 0;
+				if (result_euid == SUBJ_OVER && left_euid > wait) wait = left_euid;
+				if (result_prog == SUBJ_OVER && left_prog > wait) wait = left_prog;
 
-		if (observed) {
-			printk("%s: syscall %d under observation - euid %d, thread %d\n",
+				/* wait for "wait" jiffies*/
+				long ret = wait_event_interruptible_timeout(throttle_queue, 0, wait);
+
+				if (ret == -ERESTARTSYS)       	// a signal arrived while sleeping
+					return -ERESTARTSYS;    // do NOT run the original syscall
+
+				result_euid = registry_count_euid(current->cred->euid.val, &left_euid);
+				result_prog = registry_count_prog(current->comm, &left_prog);
+			}
+		} 
+		
+		/* observed logging */
+		if (result_euid != SUBJ_NOT_REGISTERED && result_prog != SUBJ_NOT_REGISTERED) 
+			printk("%s: syscall %d observed - euid %d and program %s, thread %d\n",
+					MODNAME, nr, current->cred->euid.val, current->comm, current->pid);
+		else if (result_euid != SUBJ_NOT_REGISTERED)
+			printk("%s: syscall %d observed - euid %d, thread %d\n",
 					MODNAME, nr, current->cred->euid.val, current->pid);
-			//1 second count //////////////////////////////////////////////
-		}
+		else if (result_prog != SUBJ_NOT_REGISTERED)
+			printk("%s: syscall %d observed - program %s, thread %d\n",
+					MODNAME, nr, current->comm, current->pid);
 	}
-	return orig(regs);
+		return orig(regs);
 }
 
 int sctable_replace(int nr){
