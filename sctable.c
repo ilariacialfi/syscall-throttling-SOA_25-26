@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/sched.h>	/* For schedule() */
+#include <linux/ktime.h>
 
 #include "throttler.h"
 #include "lib/include/scth.h"
@@ -60,6 +61,8 @@ static long my_wrapper(const struct pt_regs *regs) {
 
 		/* over MAX logging & block*/    
 		if (result_euid == SUBJ_OVER || result_prog == SUBJ_OVER) {
+			ktime_t block_start = ktime_get();	//start of blocked time
+
 			if (result_euid == SUBJ_OVER && result_prog == SUBJ_OVER)
 				printk("%s: syscall %d OVER MAX - euid %d and program %s, thread %d\n", 
 						MODNAME, nr, current->cred->euid.val, current->comm, current->pid);
@@ -87,6 +90,7 @@ static long my_wrapper(const struct pt_regs *regs) {
 				result_euid = registry_count_euid(current->cred->euid.val, &left_euid);
 				result_prog = registry_count_prog(current->comm, &left_prog);
 			}
+			registry_record_delay(ktime_to_ns(ktime_sub(ktime_get(), block_start)), current->cred->euid.val, current->comm); //end of blocked time
 		} 
 
 		/* observed logging */

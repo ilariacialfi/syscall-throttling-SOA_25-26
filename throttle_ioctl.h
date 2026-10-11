@@ -39,6 +39,9 @@ struct throttle_config {
 	int syscalls[MAX_REGISTERED_SYSCALLS];	//-1 = free syscall slot
 	int euids[MAX_REGISTERED_EUIDS];	//-1 = free EUID slot
 	char progs[MAX_REGISTERED_PROGS][PROG_NAME_MAX];
+	unsigned long peak_delay_ms;		//peak blocking delay, in milliseconds
+	char peak_prog[PROG_NAME_MAX];		//program responsible for the peak ("" if none yet)
+	int peak_euid;				//euid responsible for the peak (-1 if none yet)
 };
 
 #define GET_CONFIG   _IOR(THROTTLE_MAGIC, 10, struct throttle_config)	//read the current configuration

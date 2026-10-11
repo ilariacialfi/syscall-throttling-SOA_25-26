@@ -40,6 +40,7 @@ int registry_is_euid_registered(int euid);
 int registry_is_prog_registered(const char *path);
 int registry_count_euid(int euid, unsigned long *left);
 int registry_count_prog(const char *name, unsigned long *left);
+void registry_record_delay(s64 delay, int euid, const char *prog);
 
 /* main.c */
 extern unsigned long the_syscall_table;	//defined in main.c, set from the module parameter

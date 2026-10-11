@@ -26,6 +26,9 @@ static DEFINE_MUTEX(registry_mutex);	//serializes every access to the configurat
 
 static int enable_monitor = 0;		//enable/disable throttling monitor
 static unsigned long max_calls = 0;	//MAX invocations per second
+static s64 peak_delay = 0;		//peak blocking delay, in ns
+static char peak_prog[PROG_NAME_MAX] = "";	//program of the peak-delay call
+static int peak_euid = -1;			//euid of the peak-delay call
 
 static int registered_sys[MAX_REGISTERED_SYSCALLS] = {[0 ... (MAX_REGISTERED_SYSCALLS-1)] -1};  //registered syscall numbers or -1 if free
 
@@ -204,7 +207,8 @@ void registry_set_monitor(int on) {
 	printk("%s: monitor %s\n", MODNAME, on ? "on" : "off");
 }
 
-/* fills throttle_config: monitor, MAX, syscalls, EUIDs and program names. */
+/* fills throttle_config: monitor, MAX, syscalls, EUIDs and program names.
+ * and the peak-delay statistic (delay in ms + responsible program and euid). */
 void registry_get_config(struct throttle_config *confg) {
 
 	int i;
@@ -215,6 +219,9 @@ void registry_get_config(struct throttle_config *confg) {
 	for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++) confg->syscalls[i] = registered_sys[i];
 	for (i = 0; i < MAX_REGISTERED_EUIDS; i++) confg->euids[i] = registered_euid[i].euid;
 	for (i = 0; i < MAX_REGISTERED_PROGS; i++) memcpy(confg->progs[i], registered_prog[i].name, PROG_NAME_MAX);
+	confg->peak_delay_ms = peak_delay / 1000000;	//nanoseconds -> milliseconds
+	memcpy(confg->peak_prog, peak_prog, PROG_NAME_MAX);
+	confg->peak_euid = peak_euid;
 	mutex_unlock(&registry_mutex);
 }
 
@@ -310,4 +317,19 @@ int registry_count_prog(const char *name, unsigned long *left)
 	}
 	mutex_unlock(&registry_mutex);
 	return res;
+}
+
+/**** STATISTICS LOGIC ****/
+
+/* records the delay of one throttled call; keeps the maximum seen so far,
+   together with the program and euid of the call that caused it */
+void registry_record_delay(s64 delay, int euid, const char *prog) {
+
+	mutex_lock(&registry_mutex);
+	if (delay > peak_delay) {
+		peak_delay = delay;
+		peak_euid = euid;
+		memcpy(peak_prog, prog, strlen(prog) + 1);	//+1 copies the terminator too
+	}
+	mutex_unlock(&registry_mutex);
 }

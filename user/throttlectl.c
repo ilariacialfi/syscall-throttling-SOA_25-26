@@ -85,6 +85,9 @@ int main(int argc, char **argv) {
 		printf("\nregistered programs:");
 		for (i = 0; i < MAX_REGISTERED_PROGS; i++)
 			if (confg.progs[i][0] != '\0') printf(" %s", confg.progs[i]);
+		printf("\npeak delay: %lu ms", confg.peak_delay_ms);
+		if (confg.peak_prog[0] != '\0')
+			printf(" - program %s, euid %d", confg.peak_prog, confg.peak_euid);
 		printf("\n");
 		close(fd);
 		return 0;
