@@ -73,7 +73,9 @@ static long my_wrapper(const struct pt_regs *regs) {
 
 				if (ret == -ERESTARTSYS)       	// a signal arrived while sleeping
 					return -ERESTARTSYS;    // do NOT run the original syscall
-
+				
+				if (!registry_monitor_on())    	// monitor turned off while blocked -> let go every thread in queue
+        				break;
 				result_euid = registry_count_euid(current->cred->euid.val, &left_euid);
 				result_prog = registry_count_prog(current->comm, &left_prog);
 			}
