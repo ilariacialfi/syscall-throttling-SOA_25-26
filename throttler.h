@@ -48,4 +48,5 @@ extern unsigned long the_syscall_table;	//defined in main.c, set from the module
 int sctable_replace(int nr);
 void sctable_restore(int nr);
 void sctable_restore_all(void);
+void sctable_shutdown(void);
 #endif

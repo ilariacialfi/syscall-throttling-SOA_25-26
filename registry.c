@@ -50,7 +50,10 @@ int registry_add_syscall(int nr) {
 	int i;
 	int free_slot = -1;
 
-	if (nr < 0 || nr >= NR_syscalls) return -EINVAL;	//not an existing syscall
+	if (nr < 0 || nr >= NR_syscalls) 
+		return -EINVAL;	//not an existing syscall
+	if (nr == __NR_exit || nr == __NR_exit_group || nr == __NR_rt_sigreturn)
+		return -EINVAL;	//case syscalls that never returns to the wrapper
 
 	mutex_lock(&registry_mutex);
 	for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++) {

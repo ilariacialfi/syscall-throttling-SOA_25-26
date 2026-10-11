@@ -13,6 +13,7 @@
 #include <linux/ptrace.h>	/* For struct pt_regs */
 #include <linux/errno.h>
 #include <linux/wait.h>
+#include <linux/sched.h>	/* For schedule() */
 
 #include "throttler.h"
 #include "lib/include/scth.h"
@@ -145,4 +146,14 @@ void sctable_restore_all(void) {
 		int i;
 		for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++)
 			if (replaced_nr[i] != -1) sctable_restore(replaced_nr[i]);
+}
+
+/* called from cleanup_module: stop accepting calls, release the blocked
+   threads, restore the table and wait until no thread is inside the wrapper */
+void sctable_shutdown(void) {
+        unloading = 1;                          // tell blocked threads to stop waiting
+        wake_up_interruptible(&throttle_queue); // wake them so they re-check unloading
+        sctable_restore_all();                  // from now on no new call enters the wrapper
+        while (atomic_read(&active_calls) > 0)  // wait for the in-flight calls to finish
+                schedule();                     // leave the CPU, then re-check
 }
