@@ -18,6 +18,8 @@
 #include "lib/include/scth.h"
 
 static DECLARE_WAIT_QUEUE_HEAD(throttle_queue);
+static atomic_t active_calls = ATOMIC_INIT(0); 	//threads currently inside the wrapper
+static int unloading = 0;			//set during cleanup_module to reset blocked threads
 
 typedef long (*syscall_ptr_t)(const struct pt_regs *);	//single-argument syscall signature (kernel >= 4.17)
 
@@ -42,9 +44,12 @@ static long my_wrapper(const struct pt_regs *regs) {
 	int slot = sc_slot(nr);
 
 	syscall_ptr_t orig;
+	long ret_code;
 
 	if (slot < 0) return -ENOSYS;
 	orig = original_syscalls[slot];
+
+	atomic_inc(&active_calls); 	//entering the wrapper
 
 	if (registry_monitor_on()) {
 		unsigned long left_euid = 0;
@@ -63,24 +68,26 @@ static long my_wrapper(const struct pt_regs *regs) {
 			else if (result_prog == SUBJ_OVER)
 				printk("%s: syscall %d OVER MAX - program %s, thread %d\n", 
 						MODNAME, nr, current->comm, current->pid);
-			while (result_euid == SUBJ_OVER || result_prog == SUBJ_OVER) {
+			while (!unloading && (result_euid == SUBJ_OVER || result_prog == SUBJ_OVER)) {
 				unsigned long wait = 0;
 				if (result_euid == SUBJ_OVER && left_euid > wait) wait = left_euid;
 				if (result_prog == SUBJ_OVER && left_prog > wait) wait = left_prog;
 
 				/* wait for "wait" jiffies*/
-				long ret = wait_event_interruptible_timeout(throttle_queue, 0, wait);
+				long ret = wait_event_interruptible_timeout(throttle_queue, unloading, wait);
 
-				if (ret == -ERESTARTSYS)       	// a signal arrived while sleeping
+				if (ret == -ERESTARTSYS){       	// a signal arrived while sleeping
+					atomic_dec(&active_calls);	//leaving on signal
 					return -ERESTARTSYS;    // do NOT run the original syscall
-				
+				}
+
 				if (!registry_monitor_on())    	// monitor turned off while blocked -> let go every thread in queue
-        				break;
+					break;
 				result_euid = registry_count_euid(current->cred->euid.val, &left_euid);
 				result_prog = registry_count_prog(current->comm, &left_prog);
 			}
 		} 
-		
+
 		/* observed logging */
 		if (result_euid != SUBJ_NOT_REGISTERED && result_prog != SUBJ_NOT_REGISTERED) 
 			printk("%s: syscall %d observed - euid %d and program %s, thread %d\n",
@@ -92,7 +99,9 @@ static long my_wrapper(const struct pt_regs *regs) {
 			printk("%s: syscall %d observed - program %s, thread %d\n",
 					MODNAME, nr, current->comm, current->pid);
 	}
-		return orig(regs);
+	ret_code = orig(regs);
+	atomic_dec(&active_calls);
+	return ret_code;
 }
 
 int sctable_replace(int nr){
@@ -109,7 +118,7 @@ int sctable_replace(int nr){
 	replaced_nr[free_slot] = nr;
 
 	unprotect_memory();
-	table[nr] = (unsigned long)my_wrapper;		//install the wrapper
+	table[nr] = (unsigned long)my_wrapper;	//install the wrapper
 	protect_memory();
 
 	printk("%s: syscall %d replaced\n", MODNAME, nr);
@@ -121,7 +130,7 @@ void sctable_restore(int nr) {
 	unsigned long *table = (unsigned long *)the_syscall_table;
 	int slot = sc_slot(nr);
 
-	if (slot < 0) return;			//nothing to restore
+	if (slot < 0) return;	//nothing to restore
 
 	unprotect_memory();
 	table[nr] = (unsigned long)original_syscalls[slot];	//put the original back
