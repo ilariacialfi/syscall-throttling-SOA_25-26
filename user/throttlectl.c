@@ -1,8 +1,10 @@
 /*
  * @file throttlectl.c
- * @brief user level command-line tool to configure the syscall throttling module:
- *        opens /dev/throttler and sends the ioctl command chosen from the arguments
- *
+ * @brief user-level command-line tool for the syscall throttling module:
+ *        registers/deregisters programs, EUIDs and syscalls, sets MAX,
+ *        turns the monitor on/off, and reads the current configuration
+ *        and statistics
+ *        
  * @author Ilaria Cialfi
  *
  * @date October 8, 2026
@@ -19,17 +21,18 @@
 
 static void usage(const char *prog) {
 	fprintf(stderr,
-		"uso: %s <command> [argument]\n"
+		"usage: %s <command> [argument]\n"
 		"  add-sys <n>      register a syscalll n\n"
 		"  del-sys <n>      deregister a syscall n\n"
 		"  add-uid <id>     register EUID\n"
 		"  del-uid <id>     deregister EUID \n"
-		"  add-prog <path>  register program name\n"
-		"  del-prog <path>  deregister program name\n"
+		"  add-prog <name>  register program name\n"
+		"  del-prog <name>  deregister program name\n"
 		"  set-max <n>      set MAX (invocations per second)\n"
 		"  on               monitor on\n"
 		"  off              monitor off\n"
-		"  show             show the current configuration\n", prog);
+		"  show             show the configuration\n"
+		"  stats	    show the statistics\n", prog);
 }
 
 int main(int argc, char **argv) {
@@ -42,7 +45,6 @@ int main(int argc, char **argv) {
 	fd = open("/dev/throttler", O_RDONLY);	//read-only: everyone can open; writes are checked by the driver
 	if (fd < 0) { perror("open /dev/throttler"); return 1; }
 
-	//strcmp returns 0 if strings are equal
 	if (strcmp(argv[1], "add-sys") == 0 && argc == 3)
 		ret = ioctl(fd, ADD_SYS, atoi(argv[2]));
 	else if (strcmp(argv[1], "del-sys") == 0 && argc == 3)
@@ -73,7 +75,7 @@ int main(int argc, char **argv) {
 		if (ioctl(fd, GET_CONFIG, (unsigned long)&confg) < 0) { perror("show"); close(fd); return 1; }
 		if (confg.monitor)
 			printf("monitor: on\n");
-	        else
+		else
 			printf("monitor: off\n");
 		printf("MAX: %lu\n", confg.max);
 		printf("syscall registered:");
@@ -85,6 +87,13 @@ int main(int argc, char **argv) {
 		printf("\nregistered programs:");
 		for (i = 0; i < MAX_REGISTERED_PROGS; i++)
 			if (confg.progs[i][0] != '\0') printf(" %s", confg.progs[i]);
+		printf("\n");
+		close(fd);
+		return 0;
+	}
+	else if (strcmp(argv[1], "stats") == 0 && argc == 2) {
+		struct throttle_config confg;
+		if (ioctl(fd, GET_CONFIG, (unsigned long)&confg) < 0) { perror("stats"); close(fd); return 1; }
 		printf("\npeak delay: %lu ms", confg.peak_delay_ms);
 		if (confg.peak_prog[0] != '\0')
 			printf(" - program %s, euid %d", confg.peak_prog, confg.peak_euid);
