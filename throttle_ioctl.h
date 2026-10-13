@@ -42,6 +42,10 @@ struct throttle_config {
 	unsigned long peak_delay_ms;		//peak blocking delay, in milliseconds
 	char peak_prog[PROG_NAME_MAX];		//program responsible for the peak ("" if none yet)
 	int peak_euid;				//euid responsible for the peak (-1 if none yet)
+	int peak_blocked_threads;		//max number of threads blocked at the same time
+	unsigned long total_blocked_ns;		//sum of all blocking delays (ns)
+	unsigned long module_uptime_ns;		//observation window since module load (ns)
+
 };
 
 #define GET_CONFIG   _IOR(THROTTLE_MAGIC, 10, struct throttle_config)	//read the current configuration

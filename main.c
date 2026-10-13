@@ -28,6 +28,7 @@ int init_module(void) {
 		printk("%s: cannot manage sys_call_table address set to 0x0\n", MODNAME);
 		return -1;
 	}
+	registry_stats_init(); //start observation window for statistics
 	return dev_register();
 }
 

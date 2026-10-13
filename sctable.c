@@ -72,6 +72,9 @@ static long my_wrapper(const struct pt_regs *regs) {
 			else if (result_prog == SUBJ_OVER)
 				printk("%s: syscall %d OVER MAX - program %s, thread %d\n", 
 						MODNAME, nr, current->comm, current->pid);
+			
+			registry_block_enter();		//this thread is now blocked
+
 			while (!unloading && (result_euid == SUBJ_OVER || result_prog == SUBJ_OVER)) {
 				unsigned long wait = 0;
 				if (result_euid == SUBJ_OVER && left_euid > wait) wait = left_euid;
@@ -81,6 +84,7 @@ static long my_wrapper(const struct pt_regs *regs) {
 				long ret = wait_event_interruptible_timeout(throttle_queue, unloading, wait);
 
 				if (ret == -ERESTARTSYS){       	// a signal arrived while sleeping
+					registry_block_exit();		//leaving the blocked state
 					atomic_dec(&active_calls);	//leaving on signal
 					return -ERESTARTSYS;    // do NOT run the original syscall
 				}
@@ -90,6 +94,7 @@ static long my_wrapper(const struct pt_regs *regs) {
 				result_euid = registry_count_euid(current->cred->euid.val, &left_euid);
 				result_prog = registry_count_prog(current->comm, &left_prog);
 			}
+			registry_block_exit();		//leaving the blocked state
 			registry_record_delay(ktime_to_ns(ktime_sub(ktime_get(), block_start)), current->cred->euid.val, current->comm); //end of blocked time
 		} 
 

@@ -88,7 +88,12 @@ int main(int argc, char **argv) {
 		printf("\npeak delay: %lu ms", confg.peak_delay_ms);
 		if (confg.peak_prog[0] != '\0')
 			printf(" - program %s, euid %d", confg.peak_prog, confg.peak_euid);
-		printf("\n");
+		printf("\npeak blocked threads: %d\n", confg.peak_blocked_threads);
+		if (confg.module_uptime_ns > 0)
+			printf("average blocked threads: %.3f\n",
+					(double)confg.total_blocked_ns / confg.module_uptime_ns);
+		else
+			printf("average blocked threads: 0.000\n");
 		close(fd);
 		return 0;
 	}

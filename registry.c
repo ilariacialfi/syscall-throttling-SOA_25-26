@@ -29,6 +29,10 @@ static unsigned long max_calls = 0;	//MAX invocations per second
 static s64 peak_delay = 0;		//peak blocking delay, in ns
 static char peak_prog[PROG_NAME_MAX] = "";	//program of the peak-delay call
 static int peak_euid = -1;			//euid of the peak-delay call
+static int blocked_threads = 0;		//threads blocked right now
+static int peak_blocked_threads = 0;	//maximum of blocked_threads seen so far
+static s64 total_blocked_ns = 0;	//sum of all blocking delays
+static ktime_t stats_start;		//when statistics started (module load)
 
 static int registered_sys[MAX_REGISTERED_SYSCALLS] = {[0 ... (MAX_REGISTERED_SYSCALLS-1)] -1};  //registered syscall numbers or -1 if free
 
@@ -222,6 +226,9 @@ void registry_get_config(struct throttle_config *confg) {
 	confg->peak_delay_ms = peak_delay / 1000000;	//nanoseconds -> milliseconds
 	memcpy(confg->peak_prog, peak_prog, PROG_NAME_MAX);
 	confg->peak_euid = peak_euid;
+	confg->peak_blocked_threads = peak_blocked_threads;
+	confg->total_blocked_ns = total_blocked_ns;
+	confg->module_uptime_ns = ktime_to_ns(ktime_sub(ktime_get(), stats_start));	
 	mutex_unlock(&registry_mutex);
 }
 
@@ -326,10 +333,33 @@ int registry_count_prog(const char *name, unsigned long *left)
 void registry_record_delay(s64 delay, int euid, const char *prog) {
 
 	mutex_lock(&registry_mutex);
+	total_blocked_ns += delay;		//ns count for average
 	if (delay > peak_delay) {
 		peak_delay = delay;
 		peak_euid = euid;
 		memcpy(peak_prog, prog, strlen(prog) + 1);	//+1 copies the terminator too
 	}
+	mutex_unlock(&registry_mutex);
+}
+
+/* called once at module load: start the observation window for the average */
+void registry_stats_init(void) {
+	stats_start = ktime_get();
+}
+
+/* every time a thread is entering the blocked state: increment the live counter and
+   update the running maximum (both under the lock, so they stay consistent) */
+void registry_block_enter(void) {
+	mutex_lock(&registry_mutex);
+	blocked_threads++;
+	if (blocked_threads > peak_blocked_threads)
+		peak_blocked_threads = blocked_threads;
+	mutex_unlock(&registry_mutex);
+}
+
+/* a thread is leaving the blocked state */
+void registry_block_exit(void) {
+	mutex_lock(&registry_mutex);
+	blocked_threads--;
 	mutex_unlock(&registry_mutex);
 }
