@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
 #include "../throttle_ioctl.h"
 
@@ -77,7 +78,12 @@ int main(int argc, char **argv) {
 			printf("monitor: on\n");
 		else
 			printf("monitor: off\n");
-		printf("MAX: %lu\n", confg.max);
+		
+		if (confg.max == ULONG_MAX)
+			printf("default MAX: unlimited\n");
+		else
+			printf("MAX: %lu\n", confg.max);
+		
 		printf("syscall registered:");
 		for (i = 0; i < MAX_REGISTERED_SYSCALLS; i++)
 			if (confg.syscalls[i] != -1) printf(" %d", confg.syscalls[i]);

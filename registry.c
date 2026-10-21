@@ -18,6 +18,7 @@
 #include <asm/unistd.h>		/* For NR_syscalls */
 #include <linux/string.h>
 #include <linux/jiffies.h> 	/* for time windows */
+#include <linux/limits.h>
 
 #include "throttler.h"
 #include "throttle_ioctl.h"
@@ -25,7 +26,7 @@
 static DEFINE_MUTEX(registry_mutex);	//serializes every access to the configuration
 
 static int enable_monitor = 0;		//enable/disable throttling monitor
-static unsigned long max_calls = 0;	//MAX invocations per second
+static unsigned long max_calls = ULONG_MAX;	//MAX invocations per second (DEFAULT = no limit)
 static s64 peak_delay = 0;		//peak blocking delay, in ns
 static char peak_prog[PROG_NAME_MAX] = "";	//program of the peak-delay call
 static int peak_euid = -1;			//euid of the peak-delay call

@@ -84,6 +84,8 @@ static long my_wrapper(const struct pt_regs *regs) {
 				long ret = wait_event_interruptible_timeout(throttle_queue, unloading, wait);
 
 				if (ret == -ERESTARTSYS){       	// a signal arrived while sleeping
+					printk("%s: syscall %d interrupted by signal, thread %d\n",
+							MODNAME, nr, current->pid);
 					registry_block_exit();		//leaving the blocked state
 					atomic_dec(&active_calls);	//leaving on signal
 					return -ERESTARTSYS;    // do NOT run the original syscall
