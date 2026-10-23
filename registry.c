@@ -206,10 +206,26 @@ void registry_set_max(unsigned long max) {
 void registry_set_monitor(int on) {
 
 	mutex_lock(&registry_mutex);
-	enable_monitor = on ? 1 : 0;
+	if (on && !enable_monitor) {		//off -> on: restart the statistics observation window
+		peak_delay = 0;
+		peak_prog[0] = '\0';
+		peak_euid = -1;
+		peak_blocked_threads = 0;
+		total_blocked_ns = 0;
+		stats_start = ktime_get();
+	}
+
+	if (on)
+		enable_monitor = 1;
+	else
+		enable_monitor = 0;
+
 	mutex_unlock(&registry_mutex);
 
-	printk("%s: monitor %s\n", MODNAME, on ? "on" : "off");
+	if (on)
+		printk("%s: monitor on\n", MODNAME);
+	else
+		printk("%s: monitor off\n", MODNAME);
 }
 
 /* fills throttle_config: monitor, MAX, syscalls, EUIDs and program names.
