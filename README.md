@@ -1,7 +1,10 @@
 # Syscall Throttling — Linux Kernel Module (LKM)
 
 Progetto del corso Advanced Operating Systems (and System Security) del prof. Francesco Quaglia dell'Università di Roma Tor Vergata per l'anno 2025-26.
+
 Autrice: Ilaria Cialfi.
+
+Ulteriori dettagli implementativi e di test sono disponibili nel documento [RELAZIONE.md](docs/RELAZIONE.md).
 
 ## Descrizione
 
