@@ -82,8 +82,8 @@ Oltre ai test funzionali, due misure quantitative sono raccolte dallo script `te
 
 **Effetto del throttling.** Il primo grafico riporta il tempo di completamento di 50 invocazioni di `getpid` al variare di MAX. Il tempo cala rapidamente al crescere di MAX: con MAX basso il throttling impone attese lunghe (le chiamate oltre soglia aspettano la fine della finestra), mentre con MAX ≥ 50 le 50 chiamate rientrano in un'unica finestra e si completano quasi istantaneamente. Il grafico conferma che il meccanismo limita il ritmo di invocazione in funzione di MAX.
 
-![Effetto del throttling](test/output/throttling_effect.png)
+![Effetto del throttling](../test/output/throttling_effect.png)
 
 **Contesa.** Il secondo grafico riporta il picco e la media dei thread bloccati al variare del numero di processi concorrenti, a MAX fisso (5). Tutti i processi sono istanze dello stesso programma e condividono quindi un unico budget MAX: quando la domanda supera di molto il budget, praticamente tutti i processi finiscono bloccati nello stesso istante, e il **picco satura al numero di processi**. La **media**, che cresce in modo sotto-lineare, è l'indicatore significativo della contesa: è il numero medio di thread bloccati contemporaneamente nel periodo. La saturazione del picco non è un difetto, ma la conseguenza attesa del budget condiviso.
 
-![Thread bloccati in funzione della concorrenza](test/output/concurrency.png)
+![Thread bloccati in funzione della concorrenza](../test/output/concurrency.png)
