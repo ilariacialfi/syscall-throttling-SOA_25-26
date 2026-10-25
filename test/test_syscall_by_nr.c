@@ -1,6 +1,6 @@
 /* 
  * @file test_syscall_by_nr.c 
- * @brief test program that performs N invocations 
+ * @brief test program that performs N invocations (argv[2]) 
  *        of a choosen system call in argv[1] using nr, 
  *        no matter of syscall arguments. 
  *
@@ -16,7 +16,7 @@
 int main(int argc, char **argv) {
         int i, n, nr;
         if (argc < 3) { 
-	        printf("usage: %s <syscall-nr> <n-calls>\n", argv[0]); 
+	        fprintf(stderr, "usage: %s <syscall-nr> <n-calls>\n", argv[0]); 
 	        return 1; 
 	    }
         nr = strtol(argv[1], NULL, 10);

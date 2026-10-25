@@ -1,6 +1,11 @@
 /*
  * @file sctable.c
- * @brief replaces syscall table entrie at runtime  with a wrapper and restores it
+ * @brief hooks the sys_call_table: installs a generic wrapper in place of a
+ *        registered syscall and restores the original pointer. The wrapper
+ *        enforces the throttling (per-subject count, blocking over MAX) and
+ *        feeds the statistics; sctable_shutdown performs the safe removal
+ *        (drain of in-flight calls + table restore).
+ *        (blocking modeled on the wait queue of queuing-service.c)
  *
  * @author Ilaria Cialfi
  *
@@ -36,10 +41,12 @@ static int sc_slot(int nr) {
 	return -1;
 }
 
-/* the wrapper installed in place of the real syscall: when the monitor is on,
+/* the wrapper installed in place of the real syscall registered: when the monitor is on,
    it counts the invocation per registered subject (EUID and/or program) in the
-   1-second window and logs when a subject goes over MAX; then it calls the
-   original syscall and returns its result (blocking will be added next) */
+   1-second window; if a subject is over MAX it blocks the thread for the
+   rest of the window and records the blocking delay for the statistics; 
+   then it calls the original syscall and returns its result. 
+   A signal received while blocked aborts without running the original syscall. */
 static long my_wrapper(const struct pt_regs *regs) {
 
 	int nr = (int)regs->orig_ax;	//on x86-64 orig_ax holds the syscall number

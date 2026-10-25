@@ -30,7 +30,7 @@
 #define MONITOR_OFF  _IO(THROTTLE_MAGIC, 5)	//param: unused
 #define ADD_EUID     _IO(THROTTLE_MAGIC, 6)	//param: effective user ID
 #define DEL_EUID     _IO(THROTTLE_MAGIC, 7)	//param: effective user ID
-#define ADD_PROG     _IOW(THROTTLE_MAGIC, 8, char[PROG_NAME_MAX])	//param: address of a PROG_NAME_MAX buffer with the absolute path
+#define ADD_PROG     _IOW(THROTTLE_MAGIC, 8, char[PROG_NAME_MAX])	//param: address of a PROG_NAME_MAX buffer with the program name
 #define DEL_PROG     _IOW(THROTTLE_MAGIC, 9, char[PROG_NAME_MAX])   	//param: address of a PROG_NAME_MAX buffer with the program name
 
 struct throttle_config {
@@ -44,7 +44,7 @@ struct throttle_config {
 	int peak_euid;				//euid responsible for the peak (-1 if none yet)
 	int peak_blocked_threads;		//max number of threads blocked at the same time
 	unsigned long total_blocked_ns;		//sum of all blocking delays (ns)
-	unsigned long module_uptime_ns;		//observation window since module load (ns)
+	unsigned long observation_win_ns;	//observation window (since module load or last monitor on) (ns)
 
 };
 

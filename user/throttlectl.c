@@ -23,7 +23,7 @@
 static void usage(const char *prog) {
 	fprintf(stderr,
 		"usage: %s <command> [argument]\n"
-		"  add-sys <n>      register a syscalll n\n"
+		"  add-sys <n>      register a syscall n\n"
 		"  del-sys <n>      deregister a syscall n\n"
 		"  add-uid <id>     register EUID\n"
 		"  del-uid <id>     deregister EUID \n"
@@ -33,13 +33,13 @@ static void usage(const char *prog) {
 		"  on               monitor on\n"
 		"  off              monitor off\n"
 		"  show             show the configuration\n"
-		"  stats	    show the statistics\n", prog);
+		"  stats            show the statistics\n", prog);
 }
 
 int main(int argc, char **argv) {
 
 	int fd, ret;
-	char path[PROG_NAME_MAX];
+	char p_name[PROG_NAME_MAX];
 
 	if (argc < 2) { usage(argv[0]); return 1; }
 
@@ -55,14 +55,14 @@ int main(int argc, char **argv) {
 	else if (strcmp(argv[1], "del-uid") == 0 && argc == 3)
 		ret = ioctl(fd, DEL_EUID, atoi(argv[2]));
 	else if (strcmp(argv[1], "add-prog") == 0 && argc == 3) {
-		strncpy(path, argv[2], PROG_NAME_MAX);
-		path[PROG_NAME_MAX - 1] = '\0';
-		ret = ioctl(fd, ADD_PROG, (unsigned long)path);
+		strncpy(p_name, argv[2], PROG_NAME_MAX);
+		p_name[PROG_NAME_MAX - 1] = '\0';
+		ret = ioctl(fd, ADD_PROG, (unsigned long)p_name);
 	}
 	else if (strcmp(argv[1], "del-prog") == 0 && argc == 3) {
-		strncpy(path, argv[2], PROG_NAME_MAX);
-		path[PROG_NAME_MAX - 1] = '\0';
-		ret = ioctl(fd, DEL_PROG, (unsigned long)path);
+		strncpy(p_name, argv[2], PROG_NAME_MAX);
+		p_name[PROG_NAME_MAX - 1] = '\0';
+		ret = ioctl(fd, DEL_PROG, (unsigned long)p_name);
 	}
 	else if (strcmp(argv[1], "set-max") == 0 && argc == 3)
 		ret = ioctl(fd, SET_MAX, atol(argv[2]));
@@ -104,9 +104,9 @@ int main(int argc, char **argv) {
 		if (confg.peak_prog[0] != '\0')
 			printf(" - program %s, euid %d", confg.peak_prog, confg.peak_euid);
 		printf("\npeak blocked threads: %d\n", confg.peak_blocked_threads);
-		if (confg.module_uptime_ns > 0)
+		if (confg.observation_win_ns > 0)
 			printf("average blocked threads: %.3f\n",
-					(double)confg.total_blocked_ns / confg.module_uptime_ns);
+					(double)confg.total_blocked_ns / confg.observation_win_ns);
 		else
 			printf("average blocked threads: 0.000\n");
 		close(fd);

@@ -1,7 +1,10 @@
 /*
  * @file registry.c
- * @brief configuration state of the syscall throttling module:
- *        registered syscall numbers, MAX, monitor on/off
+ * @brief configuration state and statistics of the syscall throttling module:
+ *        registered syscall numbers, EUIDs and program names, MAX, monitor on/off,
+ *        per-subject counting 1-second window;
+ *        for statistics: peak delay (with responsible program and EUID) and 
+ *        peak/avg blocked threads.
  *        (locking scheme derived from dev_write in driver-concurrency.c;
  *        list of syscall numbers modeled on restore[] in work-queues.c;
  *        monitor flag modeled on enable_sleep in queuing-service.c)
@@ -33,7 +36,7 @@ static int peak_euid = -1;			//euid of the peak-delay call
 static int blocked_threads = 0;		//threads blocked right now
 static int peak_blocked_threads = 0;	//maximum of blocked_threads seen so far
 static s64 total_blocked_ns = 0;	//sum of all blocking delays
-static ktime_t stats_start;		//when statistics started (module load)
+static ktime_t stats_start;		//when statistics window started (module load or restart monitor on)
 
 static int registered_sys[MAX_REGISTERED_SYSCALLS] = {[0 ... (MAX_REGISTERED_SYSCALLS-1)] -1};  //registered syscall numbers or -1 if free
 
@@ -51,7 +54,7 @@ struct prog_entry {
     unsigned long count;
 };
 
-static struct prog_entry registered_prog[MAX_REGISTERED_PROGS];	//registered program paths, empty string = free slot
+static struct prog_entry registered_prog[MAX_REGISTERED_PROGS];	//registered program name, empty string = free slot
 
 int registry_add_syscall(int nr) {
 
@@ -245,7 +248,7 @@ void registry_get_config(struct throttle_config *confg) {
 	confg->peak_euid = peak_euid;
 	confg->peak_blocked_threads = peak_blocked_threads;
 	confg->total_blocked_ns = total_blocked_ns;
-	confg->module_uptime_ns = ktime_to_ns(ktime_sub(ktime_get(), stats_start));	
+	confg->observation_win_ns = ktime_to_ns(ktime_sub(ktime_get(), stats_start));	
 	mutex_unlock(&registry_mutex);
 }
 

@@ -1,8 +1,9 @@
 /*
  * @file main.c
- * @brief entry point of the syscall throttling module: init_module and
- *        cleanup_module, which start up and shut down the module components
- *        (currently the char device in device.c)
+ * @brief entry point of the syscall throttling module. 
+ *        init_module receives the sys_call_table address, starts the statistics 
+ *        observation window and registers the char device;
+ *        cleanup_module performs the shutdown and unregisters the device.
  *
  * @author Ilaria Cialfi
  *

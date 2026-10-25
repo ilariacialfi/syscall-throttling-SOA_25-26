@@ -32,8 +32,8 @@ int main(void) {
 
 	fd = open(device, O_RDONLY);	//read-only open allowed to everyone; writes checked by the driver (EUID 0)
 	if (fd == -1) {
-		printf("open error on device %s\n", device);
-		return -1;
+		perror(device); //returns error
+		return 1;
 	}
 	printf("device %s successfully opened\n", device);
 

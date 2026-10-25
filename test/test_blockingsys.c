@@ -2,7 +2,7 @@
  * @file test_blockingsys.c 
  * @brief test program that performs N invocations 
  *        of a blocking system call.
- *        Choose: clock_nanosleep (syscall nr 230)
+ *        Used: clock_nanosleep (syscall nr 230)
  *
  * @author Ilaria Cialfi 
  * 
@@ -13,9 +13,13 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/syscall.h>
+#include <stdio.h>
 
 int main(int argc, char **argv) {
-	if (argc < 2) return 1;
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s <n-calls>\n", argv[0]);
+		return 1;
+	}
 	int n = atoi(argv[1]);
 	struct timespec ts = { 0, 50 * 1000 * 1000 };	//50 ms
 	int i;
